@@ -11,20 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('stories', function (Blueprint $table) {
+        Schema::create('bookmarks', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->text('story');
-            $table->foreignId('category_id')
-                ->nullOnDelete()
+            $table->foreignId('story_id')
+                ->cascadeOnDelete()
                 ->cascadeOnUpdate()
-                ->constrained('categories');
+                ->constrained('stories');
             $table->foreignId('user_id')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate()
                 ->constrained('users');
-            // $table->string('cover_image')->nullable();
-            $table->text('images')->nullable();
             $table->timestamps();
         });
     }
@@ -34,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('book');
+        Schema::dropIfExists('bookmarks');
     }
 };

@@ -19,6 +19,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register'])->name('register');
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 
-Route::middleware(['auth:sanctum'])->group(function() {
-    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
+    Route::post('/logout', [AuthController::class, 'logout'])->middleware('jwt.auth');
+    Route::put('/user/update-profile', [UserController::class, 'updateProfile'])->middleware('jwt.auth');
+    Route::put('/user/update', [UserController::class, 'update'])->middleware('jwt.auth');
+    Route::get('/user/profile/{user_id}', [UserController::class, 'getProfile'])->middleware('jwt.auth');
+    Route::put('/user/change-password', [UserController::class, 'updatePassword'])->middleware('jwt.auth');
+    Route::post('/user/update-picture', [UserController::class, 'addProfilePicture'])->middleware('jwt.auth');
 });
