@@ -14,8 +14,12 @@ class Story extends Model
         'story',
         'category_id',
         'user_id',
-        'cover_image',
-        'images',
+        // 'cover_image',
+        // 'images',
+    ];
+
+    protected $casts = [
+        'images' => 'array',
     ];
 
     public function category()

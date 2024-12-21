@@ -14,7 +14,24 @@ class CategoryTableSeeder extends Seeder
     public function run(): void
     {
         DB::table('categories')->insert([
-            'category_name' => 'comedy',
+            [
+                'category_name' => 'comedy',
+                'created_at' => now(),
+                'updated_at' => now(),
+                'deleted_at' => now(),
+            ],
+            [
+                'category_name' => 'romance',
+                'created_at' => now(),
+                'updated_at' => now(),
+                'deleted_at' => null,
+            ],
+            [
+                'category_name' => 'fantasy',
+                'created_at' => now(),
+                'updated_at' => now(),
+                'deleted_at' => null,
+            ],
         ]);
     }
 }

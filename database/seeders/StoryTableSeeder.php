@@ -14,10 +14,33 @@ class StoryTableSeeder extends Seeder
     public function run(): void
     {
         DB::table('stories')->insert([
-            'title' => 'shin',
-            'story' => 'Lorem Ipsum',
-            'user_id' => 1,
-            'category_id' => 1,
+            [
+                'title' => 'story1',
+                'story' => 'Lorem Ipsum',
+                'user_id' => 1,
+                'category_id' => 3,
+                'created_at' => now(),
+                'updated_at' => now(),
+                'deleted_at' => null,
+            ],
+            [
+                'title' => 'story2',
+                'story' => 'Lorem Ipsum',
+                'user_id' => 1,
+                'category_id' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+                'deleted_at' => now(),
+            ],
+            [
+                'title' => 'story3',
+                'story' => 'Lorem Ipsum',
+                'user_id' => 1,
+                'category_id' => 3,
+                'created_at' => now(),
+                'updated_at' => now(),
+                'deleted_at' => null,
+            ],
         ]);
     }
 }
