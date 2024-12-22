@@ -11,11 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
+        Schema::create('bookmarks', function (Blueprint $table) {
             $table->id();
-            $table->string('category_name');
+            $table->foreignId('story_id')
+                ->cascadeOnDelete()
+                ->cascadeOnUpdate()
+                ->constrained('stories');
+            $table->foreignId('user_id')
+                ->cascadeOnDelete()
+                ->cascadeOnUpdate()
+                ->constrained('users');
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
@@ -24,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('bookmarks');
     }
 };

@@ -19,7 +19,14 @@ return new class extends Migration
                 ->nullOnDelete()
                 ->cascadeOnUpdate()
                 ->constrained('categories');
+            $table->foreignId('user_id')
+                ->cascadeOnDelete()
+                ->cascadeOnUpdate()
+                ->constrained('users');
+            // $table->string('cover_image')->nullable();
+            $table->text('images')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -12,6 +12,23 @@ class Story extends Model
     protected $fillable = [
         'title',
         'story',
-        'category_id'
+        'category_id',
+        'user_id',
+        // 'cover_image',
+        // 'images',
     ];
+
+    protected $casts = [
+        'images' => 'array',
+    ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
