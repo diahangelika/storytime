@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 // use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -13,23 +14,33 @@ class UserController extends Controller
 {
     public function getProfile(Request $request, $user_id)
     {
-        $userData = User::find($user_id);
+        try {
+            $userData = User::find($user_id);
 
-        if (!$userData) {
+            if (!$userData) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 404,
+                    'message' => 'User not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'code' => 200,
+                'message' => 'User data retrieved successfully',
+                'data' => $userData
+            ]);
+
+        } catch (\Exception $th) {
             return response()->json([
                 'status' => 'error',
-                'code' => 404,
-                'message' => 'User not found',
-            ], 404);
+                'code' => 500,
+                'message' => $th->getMessage()
+            ]);
         }
-
-        return response()->json([
-            'status' => 'success',
-            'code' => 200,
-            'message' => 'User data retrieved successfully',
-            'data' => $userData
-        ]);
     }
+
     public function addProfilePicture(Request $request)
     {
         try {
@@ -262,6 +273,53 @@ class UserController extends Controller
                 'code' => 500,
                 'message' => $th->getMessage(),
             ]);
+        }
+    }
+
+    public function getUser(Request $request)
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+    
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 404,
+                    'message' => 'User not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'code' => 200,
+                'message' => 'User fetched successfully',
+                'data' => $user
+            ]);
+
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 401,
+                'message' => 'Token has expired',
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 401,
+                'message' => 'Token is invalid',
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 400,
+                'message' => 'Token is absent',
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $e->getMessage(),
+            ], 500);
         }
     }
 }

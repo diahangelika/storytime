@@ -30,6 +30,7 @@ Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
     Route::put('/user/update-profile', [UserController::class, 'updateProfile'])->middleware('jwt.auth');
     Route::put('/user/update', [UserController::class, 'update'])->middleware('jwt.auth');
     Route::get('/user/profile/{user_id}', [UserController::class, 'getProfile'])->middleware('jwt.auth');
+    Route::get('/user/user-profile', [UserController::class, 'getUser'])->middleware('jwt.auth');
 
     // STORY
     Route::get('/stories', [StoryController::class, 'getAllStories']);
