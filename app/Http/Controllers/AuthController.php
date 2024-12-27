@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
@@ -41,7 +42,7 @@ class AuthController extends Controller
                 'name' => $request->input('name'),
                 'username' => $request->input('username'),
                 'email' => $request->input('email'),
-                'password' => bcrypt($request->input('password')),
+                'password' => Hash::make($request->input('password')),
             ]);
 
             // RETURN RESPONSE
@@ -122,7 +123,8 @@ class AuthController extends Controller
                     'status' => 'success',
                     'code' => 200,
                     'message' => 'Login successful',
-                    'token' => $token
+                    'token' => $token,
+                    'user' => $user
                 ]);
 
             } catch (\Exception $err) {

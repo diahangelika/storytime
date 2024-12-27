@@ -197,82 +197,90 @@ class UserController extends Controller
 
     public function update(Request $request)
     {
-        // VALIDATE DATA
-        $request->validate([
-            'name' => 'sometimes|string',
-            'username' => 'sometimes|string|min:5|max:15',
-            // 'email' => 'sometimes',
-            'bio' => 'sometimes',
-            'old_password' => 'sometimes',
-            'new_password' => [
-                'sometimes',
-                'min:8',
-                'regex:/^(?=.*\d)(?=.*[@$!%*?&_\\-])[A-Za-z\d@$!%*?&_\\-]+$/',
-            ],
-        ], [
-            'username.unique' => 'Username already exists',
-            'username.max' => 'Username must be between 5 and 15 characters',
-            'username.min' => 'Username must be between 5 and 15 characters',
-            // 'email.unique' => 'Email already exists',
-            'password.min' => 'Password must be at least 8 characters',
-            'password.regex' => 'Password must contain at least one number and one special character',
-        ]);
-
         try {
-            // FIND USER BY ID
-            $user = User::find($request->user()->id);
-            if (!$user) {
-                return response()->json([
-                    'status' => 'error',
-                    'code' => 404,
-                    'message' => 'User not found',
-                ], 404);
-            }
+            // VALIDATE DATA
+            $request->validate([
+                'name' => 'nullable|string',
+                'username' => 'nullable|string|min:5|max:15',
+                'email' => 'nullable',
+                'bio' => 'nullable',
+                'old_password' => 'nullable',
+                'new_password' => [
+                    'nullable',
+                    'min:8',
+                    'regex:/^(?=.*\d)(?=.*[@$!%*?&_\\-])[A-Za-z\d@$!%*?&_\\-]+$/',
+                ],
+            ], [
+                'username.unique' => 'Username already exists',
+                'username.max' => 'Username must be between 5 and 15 characters',
+                'username.min' => 'Username must be between 5 and 15 characters',
+                'password.min' => 'Password must be at least 8 characters',
+                'password.regex' => 'Password must contain at least one number and one special character',
+            ]);
 
-            // PROFILE DATA CHANGE
-            if ($request->has('name')) {
-                $user->name = $request->get('name');
-            }
-            if ($request->has('username')) {
-                $user->username = $request->get('username');
-            }
-            // if ($request->has('email')) {
-            //     $user->email = $request->get('email');
-            // }
-            if ($request->has('bio')) {
-                $user->bio = $request->get('bio');
-            }
-
-            // PASSWORD CHANGE
-            if ($request->has('password')) {
-                if (!Hash::check($request->old_password, $user->password)) {
+            try {
+                // FIND USER BY ID
+                $user = User::find($request->user()->id);
+                if (!$user) {
                     return response()->json([
                         'status' => 'error',
-                        'code' => 400,
-                        'message' => 'Old password is incorrect',
-                    ], 400);
+                        'code' => 404,
+                        'message' => 'User not found',
+                    ], 404);
                 }
 
-                $user->password = bcrypt($request->get('new_password'));
+                // PROFILE DATA CHANGE
+                if ($request->has('name')) {
+                    $user->name = $request->get('name');
+                }
+                if ($request->has('username')) {
+                    $user->username = $request->get('username');
+                }
+                if ($request->has('email')) {
+                    $user->email = $request->get('email');
+                }
+                if ($request->has('bio')) {
+                    $user->bio = $request->get('bio');
+                }
+
+                // PASSWORD CHANGE
+                if ($request->filled('old_password', 'new_password')) {
+                    if (!Hash::check($request->old_password, $user->password)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'code' => 400,
+                            'message' => 'Old password is incorrect',
+                        ], 400);
+                    }
+
+                    $user->password = Hash::make($request->get('new_password'));
+                }
+
+                // SAVE THE UPDATED DATA
+                $user->save();
+
+                // RETURN RESPONSE
+                return response()->json([
+                    'status' => 'success',
+                    'code' => 200,
+                    'message' => 'Profile updated successfully',
+                    'data' => $user
+                ]);
+
+            } catch (\Exception $th) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 500,
+                    'message' => $th->getMessage(),
+                ]);
             }
-
-            // SAVE THE UPDATED DATA
-            $user->save();
-
-            // RETURN RESPONSE
-            return response()->json([
-                'status' => 'success',
-                'code' => 200,
-                'message' => 'Profile updated successfully',
-                'data' => $user
-            ]);
 
         } catch (\Exception $th) {
             return response()->json([
                 'status' => 'error',
                 'code' => 500,
                 'message' => $th->getMessage(),
-            ]);
+            ], 500);
         }
     }
 

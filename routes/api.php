@@ -27,17 +27,17 @@ Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('jwt.auth');
 
     // USER
-    Route::put('/user/update-profile', [UserController::class, 'updateProfile'])->middleware('jwt.auth');
     Route::put('/user/update', [UserController::class, 'update'])->middleware('jwt.auth');
     Route::get('/user/profile/{user_id}', [UserController::class, 'getProfile'])->middleware('jwt.auth');
     Route::get('/user/user-profile', [UserController::class, 'getUser'])->middleware('jwt.auth');
+    Route::post('/user/update-picture', [UserController::class, 'addProfilePicture'])->middleware('jwt.auth');
 
     // STORY
     Route::get('/stories', [StoryController::class, 'getAllStories']);
 
     // optional
     Route::put('/user/change-password', [UserController::class, 'updatePassword'])->middleware('jwt.auth');
-    Route::post('/user/update-picture', [UserController::class, 'addProfilePicture'])->middleware('jwt.auth');
+    Route::put('/user/update-profile', [UserController::class, 'updateProfile'])->middleware('jwt.auth');
 });
 
 Route::get('/categories', [StoryController::class, 'getAllCategories']);
