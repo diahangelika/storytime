@@ -50,33 +50,45 @@ class UserController extends Controller
             ]);
         
             try {
-                $user = auth()->user(); // Get the authenticated user
+                $user = JWTAuth::parseToken()->authenticate();
         
                 // Handle file upload
                 if ($request->hasFile('avatar')) {
-                    $file = $request->file('avatar');
+                    
+                    // $file = $request->file('avatar');
         
-                    // Define a unique file name
-                    $filename = 'avatars/' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    // // Define a unique file name
+                    // $filename = 'avatars/' . uniqid() . '.' . $file->getClientOriginalExtension();
         
-                    // Store file in the public directory
-                    $path = $file->storeAs('public', $filename);
+                    // // Store file in the public directory
+                    // $path = $file->storeAs('public', $filename);
         
-                    // Delete old avatar if it exists
+                    // // Delete old avatar if it exists
+                    // if ($user->avatar) {
+                    //     Storage::delete('public/' . $user->avatar);
+                    // }
+        
+                    // // Update user's avatar field with new path
+                    // $user->avatar = $filename;
+                    // $user->save(); //ini garis merah biarin aja tetep mau jalan beliau
+
                     if ($user->avatar) {
-                        Storage::delete('public/' . $user->avatar);
+                        Storage::disk('public')->delete($user->avatar);
                     }
         
-                    // Update user's avatar field with new path
-                    $user->avatar = $filename;
-                    $user->save(); //ini garis merah biarin aja tetep mau jalan beliau
+                    $imagePath = $request->file('avatar')->store('avatar', 'public');
+                    $user->avatar = $imagePath;
+                    $user->save();
         
                     return response()->json([
                         'status' => 'success',
-                        'code' => 200,
-                        'message' => 'Profile picture updated successfully',
-                        'avatar_url' => asset('storage/' . $filename),
-                    ]);
+                        'code' => 201,
+                        'message' => 'Profile image updated successfully.',
+                        'user' => [
+                        'id' => $user->id,
+                        'avatar' => $user->avatar,
+                        ],
+                    ], 201);
                 }
             } catch (\Exception $e) {
                 return response()->json([
@@ -195,6 +207,50 @@ class UserController extends Controller
         }
     }
 
+    public function updateProfileImage(Request $request)
+    {
+        try {
+            $request->validate([
+                'profile_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+
+            // Get the authenticated user by ID
+            $user = User::find($request->user()->id);
+
+            // Handle profile image upload
+            if ($request->hasFile('profile_image')) {
+                // Delete old profile image if exists
+                if ($user->profile_image) {
+                    Storage::disk('public')->delete($user->profile_image);
+                }
+
+                // Store new profile image
+                $imagePath = $request->file('profile_image')->store('profile_images', 'public');
+                $user->profile_image = $imagePath;
+                $user->save();
+
+                return response()->json([
+                    'code' => 201,
+                    'message' => 'Profile image updated successfully.',
+                    'user' => [
+                        'id' => $user->id,
+                        'profile_image' => $user->profile_image,
+                    ],
+                ], 201);
+            }
+
+            return response()->json([
+                'code' => 400,
+                'message' => 'No image uploaded.',
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'An error occurred while updating the profile image.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function update(Request $request)
     {
         // VALIDATE DATA
@@ -276,7 +332,7 @@ class UserController extends Controller
         }
     }
 
-    public function getUser(Request $request)
+    public function getUser()
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
