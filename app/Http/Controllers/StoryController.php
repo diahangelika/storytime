@@ -64,12 +64,47 @@ class StoryController extends Controller
 
     public function createStory(Request $request)
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'story' => 'required|string',
-            'category_id' => 'required|exists:categories,id',
-            'user_id' => 'required|exists:users,id',
-        ]);
+        try {
+            // Validate the incoming request
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'content' => 'required|string',
+                'category_id' => 'required|exists:categories,id',
+                'images' => 'required|array|min:4|max:4',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+    
+            // Get authenticated user
+            $user = auth()->user();
+    
+            // Store images and collect their paths
+            $imagePaths = [];
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('stories', 'public');
+                $imagePaths[] = $path; // Save image path
+            }
+    
+            // Create a story record
+            $story = Story::create([
+                'title' => $request->title,
+                'content' => $request->content,
+                'category_id' => $request->category_id,
+                'author_id' => $user->id,
+                'images' => json_encode($imagePaths), // Store as JSON
+            ]);
+    
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Story created successfully.',
+                'data' => $story,
+            ], 201);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function updateStory(Request $request, $id)

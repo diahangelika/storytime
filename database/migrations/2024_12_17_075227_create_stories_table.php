@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('stories', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->text('story');
+            $table->text('content');
             $table->foreignId('category_id')
                 ->nullOnDelete()
                 ->cascadeOnUpdate()
@@ -23,8 +23,7 @@ return new class extends Migration
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate()
                 ->constrained('users');
-            // $table->string('cover_image')->nullable();
-            $table->text('images')->nullable();
+            $table->json('images')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -35,6 +34,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('book');
+        Schema::dropIfExists('stories');
     }
 };

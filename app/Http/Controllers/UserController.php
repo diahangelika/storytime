@@ -54,23 +54,6 @@ class UserController extends Controller
         
                 // Handle file upload
                 if ($request->hasFile('avatar')) {
-                    
-                    // $file = $request->file('avatar');
-        
-                    // // Define a unique file name
-                    // $filename = 'avatars/' . uniqid() . '.' . $file->getClientOriginalExtension();
-        
-                    // // Store file in the public directory
-                    // $path = $file->storeAs('public', $filename);
-        
-                    // // Delete old avatar if it exists
-                    // if ($user->avatar) {
-                    //     Storage::delete('public/' . $user->avatar);
-                    // }
-        
-                    // // Update user's avatar field with new path
-                    // $user->avatar = $filename;
-                    // $user->save(); //ini garis merah biarin aja tetep mau jalan beliau
 
                     if ($user->avatar) {
                         Storage::disk('public')->delete($user->avatar);
@@ -78,7 +61,7 @@ class UserController extends Controller
         
                     $imagePath = $request->file('avatar')->store('avatar', 'public');
                     $user->avatar = $imagePath;
-                    $user->save();
+                    $user->save(); //ini garis merah biarin aja tetep mau jalan beliau
         
                     return response()->json([
                         'status' => 'success',
@@ -87,6 +70,7 @@ class UserController extends Controller
                         'user' => [
                         'id' => $user->id,
                         'avatar' => $user->avatar,
+                        
                         ],
                     ], 201);
                 }
@@ -207,53 +191,12 @@ class UserController extends Controller
         }
     }
 
-    public function updateProfileImage(Request $request)
-    {
-        try {
-            $request->validate([
-                'profile_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            ]);
-
-            // Get the authenticated user by ID
-            $user = User::find($request->user()->id);
-
-            // Handle profile image upload
-            if ($request->hasFile('profile_image')) {
-                // Delete old profile image if exists
-                if ($user->profile_image) {
-                    Storage::disk('public')->delete($user->profile_image);
-                }
-
-                // Store new profile image
-                $imagePath = $request->file('profile_image')->store('profile_images', 'public');
-                $user->profile_image = $imagePath;
-                $user->save();
-
-                return response()->json([
-                    'code' => 201,
-                    'message' => 'Profile image updated successfully.',
-                    'user' => [
-                        'id' => $user->id,
-                        'profile_image' => $user->profile_image,
-                    ],
-                ], 201);
-            }
-
-            return response()->json([
-                'code' => 400,
-                'message' => 'No image uploaded.',
-            ], 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'An error occurred while updating the profile image.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function update(Request $request)
     {
         try {
+            // AUTHENTICATE USER
+            $user = JWTAuth::parseToken()->authenticate();
+
             // VALIDATE DATA
             $request->validate([
                 'name' => 'nullable|string',
@@ -266,6 +209,7 @@ class UserController extends Controller
                     'min:8',
                     'regex:/^(?=.*\d)(?=.*[@$!%*?&_\\-])[A-Za-z\d@$!%*?&_\\-]+$/',
                 ],
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ], [
                 'username.unique' => 'Username already exists',
                 'username.max' => 'Username must be between 5 and 15 characters',
@@ -275,15 +219,6 @@ class UserController extends Controller
             ]);
 
             try {
-                // FIND USER BY ID
-                $user = User::find($request->user()->id);
-                if (!$user) {
-                    return response()->json([
-                        'status' => 'error',
-                        'code' => 404,
-                        'message' => 'User not found',
-                    ], 404);
-                }
 
                 // PROFILE DATA CHANGE
                 if ($request->has('name')) {
@@ -311,6 +246,20 @@ class UserController extends Controller
 
                     $user->password = Hash::make($request->get('new_password'));
                 }
+
+                $isUpdate = $request->query('is_update');
+
+                if ($isUpdate && $isUpdate === 'true') {
+                    if ($request->hasFile('avatar')) {
+                        if ($user->avatar) {
+                            Storage::disk('public')->delete($user->avatar);
+                        }
+                        $imagePath = $request->file('avatar')->store('avatar', 'public');
+                        $user->avatar = $imagePath;
+                    }
+                }
+                // AVATAR CHANGE
+                
 
                 // SAVE THE UPDATED DATA
                 $user->save();
