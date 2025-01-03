@@ -247,19 +247,26 @@ class UserController extends Controller
                     $user->password = Hash::make($request->get('new_password'));
                 }
 
+                // AVATAR CHANGE
                 $isUpdate = $request->query('is_update');
 
-                if ($isUpdate && $isUpdate === 'true') {
-                    if ($request->hasFile('avatar')) {
-                        if ($user->avatar) {
-                            Storage::disk('public')->delete($user->avatar);
-                        }
-                        $imagePath = $request->file('avatar')->store('avatar', 'public');
-                        $user->avatar = $imagePath;
-                    }
+                if ($isUpdate === 'true') {
+                    // $user->avatar = $request->avatar;
+                    $imagePath = $request->file('avatar')->store('avatar', 'public');
+                    $user->avatar = $imagePath;
                 }
-                // AVATAR CHANGE
+
                 
+
+                // if ($isUpdate && $isUpdate === 'true') {
+                //     if ($request->hasFile('avatar')) {
+                //         if ($user->avatar) {
+                //             Storage::disk('public')->delete($user->avatar);
+                //         }
+                //         $imagePath = $request->file('avatar')->store('avatar', 'public');
+                //         $user->avatar = $imagePath;
+                //     }
+                // }
 
                 // SAVE THE UPDATED DATA
                 $user->save();

@@ -24,19 +24,22 @@ Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
 //         ------ MAIN ROUTES ------
 
     // AUTH
-    Route::post('/logout', [AuthController::class, 'logout'])->middleware('jwt.auth');
+    Route::post('/logout', [AuthController::class, 'logout']);
 
     // USER
-    Route::put('/user/update', [UserController::class, 'update'])->middleware('jwt.auth');
-    Route::get('/user/user-profile', [UserController::class, 'getUser'])->middleware('jwt.auth');
-    Route::post('/user/update-picture', [UserController::class, 'addProfilePicture'])->middleware('jwt.auth');
+    Route::put('/user/update', [UserController::class, 'update']);
+    Route::get('/user/user-profile', [UserController::class, 'getUser']);
+    Route::post('/user/update-picture', [UserController::class, 'addProfilePicture']);
 
     // STORY
-    Route::get('/stories', [StoryController::class, 'getAllStories']);
+    Route::post('/story/create', [StoryController::class, 'createStory']);
 
     // optional
-    Route::put('/user/change-password', [UserController::class, 'updatePassword'])->middleware('jwt.auth');
-    Route::get('/user/profile/{user_id}', [UserController::class, 'getProfile'])->middleware('jwt.auth');
+    Route::put('/user/change-password', [UserController::class, 'updatePassword']);
+    Route::get('/user/profile/{user_id}', [UserController::class, 'getProfile']);
 });
+
+// STORY
+Route::get('/stories', [StoryController::class, 'getAllStories']);
 
 Route::get('/categories', [StoryController::class, 'getAllCategories']);
