@@ -14,7 +14,7 @@ class StoryController extends Controller
     {
 
         try {
-            // Retrieve filter parameters
+            // フィルターのパラメータを取り出す
             $category = $request->query('category');
             $user = $request->query('user');
             $title = $request->query('title');
@@ -32,7 +32,8 @@ class StoryController extends Controller
                 })
                 ->get()
                 ->map(function ($story) {
-                    // Add a 'cover' property to each story with the first image
+
+                    // ここでカバーのイメージは初めてのイメージにします
                     $images = json_decode($story->images, true);
                     $story->cover = $images[0] ?? null;
                     return $story;

@@ -12,6 +12,187 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserController extends Controller
 {
+    public function getUser()
+    {
+        try {
+            // これはユーサーの情報
+            $user = JWTAuth::parseToken()->authenticate();
+    
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 404,
+                    'message' => 'User not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'code' => 200,
+                'message' => 'User fetched successfully',
+                'data' => $user
+            ]);
+
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 401,
+                'message' => 'Token has expired',
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 401,
+                'message' => 'Token is invalid',
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 400,
+                'message' => 'Token is absent',
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function update(Request $request)
+    {
+        try {
+            // AUTHENTICATE USER
+            $user = JWTAuth::parseToken()->authenticate();
+
+            // VALIDATE DATA
+            $request->validate([
+                'name' => 'nullable|string',
+                'username' => 'nullable|string|min:5|max:15',
+                'email' => 'nullable',
+                'bio' => 'nullable',
+                'old_password' => 'nullable',
+                'new_password' => [
+                    'nullable',
+                    'min:8',
+                    'regex:/^(?=.\d)(?=.[@$!%?&_\\-])[A-Za-z\d@$!%?&_\\-]+$/',
+                ],
+                'avatar' => 'nullable',
+            ], [
+                'username.unique' => 'Username already exists',
+                'username.max' => 'Username must be between 5 and 15 characters',
+                'username.min' => 'Username must be between 5 and 15 characters',
+                'password.min' => 'Password must be at least 8 characters',
+                'password.regex' => 'Password must contain at least one number and one special character',
+            ]);
+
+            try {
+
+                // PROFILE DATA CHANGE
+                if ($request->has('name')) {
+                    $user->name = $request->get('name');
+                }
+                if ($request->has('username')) {
+                    $user->username = $request->get('username');
+                }
+                if ($request->has('email')) {
+                    $user->email = $request->get('email');
+                }
+                if ($request->has('bio')) {
+                    $user->bio = $request->get('bio');
+                }
+
+                // PASSWORD CHANGE
+                if ($request->filled('old_password', 'new_password')) {
+                    if (!Hash::check($request->old_password, $user->password)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'code' => 400,
+                            'message' => 'Old password is incorrect',
+                        ], 400);
+                    }
+                    $user->password = Hash::make($request->get('new_password'));
+                }
+
+                $isUpdate = $request->query('is_update');
+
+                // AVATAR CHANGE
+                if ($isUpdate == 'true') {
+                    $user->avatar = $request->input('avatar.data');
+                }
+
+                // SAVE THE UPDATED DATA
+                $user->save();
+
+                // RETURN RESPONSE
+                return response()->json([
+                    'status' => 'success',
+                    'code' => 200,
+                    'message' => 'Profile updated successfully 2',
+                    'data' => $request->all()
+                ]);
+            } catch (\Exception $th) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 500,
+                    'message' => $th->getMessage(),
+                ]);
+            }
+        } catch (\Exception $th) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $th->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function addProfilePicture(Request $request)
+    {
+        try {
+
+            $request->validate([
+                'avatar' => 'required|file|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+
+            try {
+                $user = JWTAuth::parseToken()->authenticate();
+
+                // Handle file upload
+                if ($request->hasFile('avatar')) {
+
+                    if ($user->avatar) {
+                        Storage::disk('public')->delete($user->avatar);
+                    }
+
+                    $imagePath = $request->file('avatar')->store('avatar', 'public');
+                    // $user->avatar = $imagePath;
+                    // $user->save(); //ini garis merah biarin aja tetep mau jalan beliau
+
+                    return response()->json([
+                        'status' => 'success',
+                        'code' => 201,
+                        'message' => 'Profile image updated successfully.',
+                        'data' => $imagePath
+                    ], 201);
+                }
+            } catch (\Exception $e) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'An error occurred while updating the profile picture',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
+        } catch (\Exception $err) {
+            return response()->json([
+                'message' => $err->getMessage()
+            ]);
+        }
+    }
+
+    // 下のファンクションは多分使いません
+
     public function getProfile(Request $request, $user_id)
     {
         try {
@@ -37,53 +218,6 @@ class UserController extends Controller
                 'status' => 'error',
                 'code' => 500,
                 'message' => $th->getMessage()
-            ]);
-        }
-    }
-
-    public function addProfilePicture(Request $request)
-    {
-        try {
-
-            $request->validate([
-                'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            ]);
-        
-            try {
-                $user = JWTAuth::parseToken()->authenticate();
-        
-                // Handle file upload
-                if ($request->hasFile('avatar')) {
-
-                    if ($user->avatar) {
-                        Storage::disk('public')->delete($user->avatar);
-                    }
-        
-                    $imagePath = $request->file('avatar')->store('avatar', 'public');
-                    $user->avatar = $imagePath;
-                    $user->save(); //ini garis merah biarin aja tetep mau jalan beliau
-        
-                    return response()->json([
-                        'status' => 'success',
-                        'code' => 201,
-                        'message' => 'Profile image updated successfully.',
-                        'user' => [
-                        'id' => $user->id,
-                        'avatar' => $user->avatar,
-                        
-                        ],
-                    ], 201);
-                }
-            } catch (\Exception $e) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'An error occurred while updating the profile picture',
-                    'error' => $e->getMessage(),
-                ], 500);
-            }
-        } catch (\Exception $err) {
-            return response()->json([
-                'message' => $err->getMessage()
             ]);
         }
     }
@@ -191,155 +325,6 @@ class UserController extends Controller
         }
     }
 
-    public function update(Request $request)
-    {
-        try {
-            // AUTHENTICATE USER
-            $user = JWTAuth::parseToken()->authenticate();
-
-            // VALIDATE DATA
-            $request->validate([
-                'name' => 'nullable|string',
-                'username' => 'nullable|string|min:5|max:15',
-                'email' => 'nullable',
-                'bio' => 'nullable',
-                'old_password' => 'nullable',
-                'new_password' => [
-                    'nullable',
-                    'min:8',
-                    'regex:/^(?=.*\d)(?=.*[@$!%*?&_\\-])[A-Za-z\d@$!%*?&_\\-]+$/',
-                ],
-                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            ], [
-                'username.unique' => 'Username already exists',
-                'username.max' => 'Username must be between 5 and 15 characters',
-                'username.min' => 'Username must be between 5 and 15 characters',
-                'password.min' => 'Password must be at least 8 characters',
-                'password.regex' => 'Password must contain at least one number and one special character',
-            ]);
-
-            try {
-
-                // PROFILE DATA CHANGE
-                if ($request->has('name')) {
-                    $user->name = $request->get('name');
-                }
-                if ($request->has('username')) {
-                    $user->username = $request->get('username');
-                }
-                if ($request->has('email')) {
-                    $user->email = $request->get('email');
-                }
-                if ($request->has('bio')) {
-                    $user->bio = $request->get('bio');
-                }
-
-                // PASSWORD CHANGE
-                if ($request->filled('old_password', 'new_password')) {
-                    if (!Hash::check($request->old_password, $user->password)) {
-                        return response()->json([
-                            'status' => 'error',
-                            'code' => 400,
-                            'message' => 'Old password is incorrect',
-                        ], 400);
-                    }
-
-                    $user->password = Hash::make($request->get('new_password'));
-                }
-
-                // AVATAR CHANGE
-                $isUpdate = $request->query('is_update');
-
-                if ($isUpdate === 'true') {
-                    // $user->avatar = $request->avatar;
-                    $imagePath = $request->file('avatar')->store('avatar', 'public');
-                    $user->avatar = $imagePath;
-                }
-
-                
-
-                // if ($isUpdate && $isUpdate === 'true') {
-                //     if ($request->hasFile('avatar')) {
-                //         if ($user->avatar) {
-                //             Storage::disk('public')->delete($user->avatar);
-                //         }
-                //         $imagePath = $request->file('avatar')->store('avatar', 'public');
-                //         $user->avatar = $imagePath;
-                //     }
-                // }
-
-                // SAVE THE UPDATED DATA
-                $user->save();
-
-                // RETURN RESPONSE
-                return response()->json([
-                    'status' => 'success',
-                    'code' => 200,
-                    'message' => 'Profile updated successfully',
-                    'data' => $user
-                ]);
-
-            } catch (\Exception $th) {
-                return response()->json([
-                    'status' => 'error',
-                    'code' => 500,
-                    'message' => $th->getMessage(),
-                ]);
-            }
-
-        } catch (\Exception $th) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 500,
-                'message' => $th->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function getUser()
-    {
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
     
-            if (!$user) {
-                return response()->json([
-                    'status' => 'error',
-                    'code' => 404,
-                    'message' => 'User not found',
-                ], 404);
-            }
 
-            return response()->json([
-                'status' => 'success',
-                'code' => 200,
-                'message' => 'User fetched successfully',
-                'data' => $user
-            ]);
-
-        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 401,
-                'message' => 'Token has expired',
-            ], 401);
-        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 401,
-                'message' => 'Token is invalid',
-            ], 401);
-        } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 400,
-                'message' => 'Token is absent',
-            ], 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 500,
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
 }
