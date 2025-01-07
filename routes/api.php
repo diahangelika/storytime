@@ -33,6 +33,8 @@ Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
 
     // STORY
     Route::post('/story/create', [StoryController::class, 'createStory']);
+    
+    
 
     // optional
     Route::put('/user/change-password', [UserController::class, 'updatePassword']);
@@ -41,5 +43,5 @@ Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
 
 // STORY
 Route::get('/stories', [StoryController::class, 'getAllStories']);
-
+Route::get('/story/{story_id}', [StoryController::class, 'getStoryById']);
 Route::get('/categories', [StoryController::class, 'getAllCategories']);
