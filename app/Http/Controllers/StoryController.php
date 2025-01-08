@@ -79,19 +79,25 @@ class StoryController extends Controller
     {
         $story = Story::with(['user', 'category'])->find($id);
 
+        $similar = Story::with(['user', 'category'])
+            ->where('id', '!=', $story->id)
+            ->where('category_id', $story->category_id) 
+            ->get();
+
         if (!$story) {
             return response()->json([
                 'status' => 'error',
                 'code' => 404,
                 'message' => 'Story not found',
-            ], 404);
+            ]);
         }
 
         return response()->json([
             'status' => 'success',
             'code' => 200,
             'message' => 'Story retrieved successfully',
-            'data' => $story
+            'data' => $story,
+            'similar' => $similar
         ]);
     }
 
@@ -155,7 +161,7 @@ class StoryController extends Controller
 
             $user = JWTAuth::parseToken()->authenticate();
 
-            $story = Story::find($id);
+            $story = Story::findOrFail($id);
 
             if (!$story) {
                 return response()->json([
@@ -174,7 +180,6 @@ class StoryController extends Controller
             }
 
             // If images are provided, store them and update the image paths
-            $imagePaths = json_decode($story->images, true); // Current images
 
             if ($request->has('images')) {
                 $newImages = [];
@@ -182,9 +187,6 @@ class StoryController extends Controller
                     $path = $image->store('stories', 'public');
                     $newImages[] = $path; // Save new image path
                 }
-
-                // Merge new images with existing ones
-                $imagePaths = array_merge($imagePaths, $newImages);
             }
 
             // Update the story
@@ -192,7 +194,7 @@ class StoryController extends Controller
                 'title' => $request->title,
                 'content' => $request->content,
                 'category_id' => $request->category_id,
-                'images' => json_encode($imagePaths), // Store as JSON
+                'images' => $newImages , // Store as JSON
             ]);
 
             return response()->json([
@@ -211,12 +213,47 @@ class StoryController extends Controller
         }
     }
 
-    public function deleteStory(Request $request, $id)
+    public function deleteStory($id)
     {
+        try {
+            
+            $user = JWTAuth::parseToken()->authenticate();
+            $story = Story::findOrFail($id);
 
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 401,
+                    'message' => 'Unauthorized',
+                ], 401);
+            }
+
+            if ($story->user_id !== $user->id) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 403,
+                    'message' => 'You are not authorized to delete this story',
+                ], 403);
+            }
+
+            $story->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'code' => 200,
+                'message' => 'Story deleted successfully.',
+            ], 200);
+
+        } catch (\Exception $err) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $err->getMessage()
+            ]);
+        }
     }
 
-
+    // CATEGORY API
     public function getAllCategories()
     {
         try {

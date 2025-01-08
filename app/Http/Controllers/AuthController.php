@@ -110,9 +110,6 @@ class AuthController extends Controller
                 // SET DATA THAT CLAIMED FOR THE TOKEN
                 $customClaims = [
                     'id' => $user->id,
-                    // 'name' => $user->name,
-                    // 'username' => $user->username,
-                    // 'email' => $user->email, 
                 ];
 
                 // GENERATE TOKEN
@@ -146,23 +143,27 @@ class AuthController extends Controller
 
     public function logout()
     {
-        // Mendapatkan token dari header permintaan
+        // GET TOKEN FROM HEADER
         $token = JWTAuth::getToken();
 
         if ($token) {
             try {
-                // Mendapatkan pengguna yang terkait dengan token
+                // GET USER FROM TOKEN
                 $user = JWTAuth::parseToken()->authenticate();
 
-                // Blacklist token
+                // BLACKLIST TOKEN
                 Cache::add('jwt_blacklist_' . $token, true, config('jwt.ttl'));
 
-                // Logout pengguna dari aplikasi
+                // LOGOUT USER
                 Auth::logout();
 
-                return response()->json(['message' => 'Successfully logged out', 'status' => 'success'], 200);
+                return response()->json([
+                    'message' => 'Successfully logged out',
+                    'code' => 200,
+                    'status' => 'success'
+                ]);
             } catch (\Exception $e) {
-                // Tangani kesalahan saat mencoba untuk mendapatkan pengguna atau memblacklist token
+                // ERROR HANDLING
                 return response()->json(['error' => 'Failed to logout'], 500);
             }
         }

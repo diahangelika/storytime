@@ -193,7 +193,7 @@ class UserController extends Controller
 
     // 下のファンクションは多分使いません
 
-    public function getProfile(Request $request, $user_id)
+    public function getProfile($user_id)
     {
         try {
             $userData = User::find($user_id);
@@ -324,7 +324,5 @@ class UserController extends Controller
             ], 500);
         }
     }
-
     
-
 }

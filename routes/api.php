@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookmarkController;
 use App\Http\Controllers\StoryController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -33,8 +34,11 @@ Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
 
     // STORY
     Route::post('/story/create', [StoryController::class, 'createStory']);
+    Route::delete('/story/delete/{story_id}', [StoryController::class, 'deleteStory']);
     
-    
+    // BOOKMARK
+    Route::get('/user/bookmarks', [BookmarkController::class, 'getBookmarks']);
+    Route::post('/bookmark', [BookmarkController::class, 'bookmark']);
 
     // optional
     Route::put('/user/change-password', [UserController::class, 'updatePassword']);
