@@ -79,6 +79,16 @@ class StoryController extends Controller
     {
         $story = Story::with(['user', 'category'])->find($id);
 
+        if (!$story) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 404,
+                'message' => 'Story not found',
+            ]);
+        }
+
+        $story->images = json_decode($story->images, true);
+
         $similar = Story::with(['user', 'category'])
             ->where('id', '!=', $story->id)
             ->where('category_id', $story->category_id) 
