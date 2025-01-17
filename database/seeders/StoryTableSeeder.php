@@ -16,7 +16,7 @@ class StoryTableSeeder extends Seeder
         DB::table('stories')->insert([
             [
                 'title' => 'story1',
-                'story' => 'Lorem Ipsum',
+                'content' => 'Lorem Ipsum',
                 'user_id' => 1,
                 'category_id' => 3,
                 'created_at' => now(),
@@ -25,7 +25,7 @@ class StoryTableSeeder extends Seeder
             ],
             [
                 'title' => 'story2',
-                'story' => 'Lorem Ipsum',
+                'content' => 'Lorem Ipsum',
                 'user_id' => 1,
                 'category_id' => 2,
                 'created_at' => now(),
@@ -34,7 +34,7 @@ class StoryTableSeeder extends Seeder
             ],
             [
                 'title' => 'story3',
-                'story' => 'Lorem Ipsum',
+                'content' => 'Lorem Ipsum',
                 'user_id' => 1,
                 'category_id' => 3,
                 'created_at' => now(),

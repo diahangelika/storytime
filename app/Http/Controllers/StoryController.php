@@ -6,39 +6,72 @@ use App\Models\Category;
 use App\Models\Story;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class StoryController extends Controller
 {
     public function getAllStories(Request $request)
     {
         try {
-            $search = $request->query('search'); 
+            // フィルターのパラメータを取り出す
+            $category = $request->query('category');
+            $user = $request->query('user');
+            $title = $request->query('title');
+    
+            // Fetch stories with filters and eager load relationships
+            $stories = Story::with(['category', 'user'])
+                ->when($category, function ($query) use ($category) {
+                    $query->where('category_id', $category);
+                })
+                ->when($user, function ($query) use ($user) {
+                    $query->where('user_id', $user);
+                })
+                ->when($title, function ($query) use ($title) {
+                    $query->where('title', 'like', '%' . $title . '%');
+                })
+                ->get();
 
-            $stories = Story::with([
-                'user:id,name,username',
-                'category:id,category_name'
-            ])
-            ->where(function ($query) use ($search) {
-                $query->where('title', 'like', '%' . $search . '%')
-                      ->orWhereHas('user', function ($subQuery) use ($search) {
-                          $subQuery->where('name', 'like', '%' . $search . '%');
-                      });
-            })
-            ->whereNull('deleted_at')->get();
+                $groupedStories = $stories->groupBy('category_id')->map(function ($stories, $categoryId) {
+                    $categoryName = $stories->first()->category->category_name ?? null;
+            
+                    return [
+                        'category_id' => $categoryId,
+                        'category_name' => $categoryName,
+                        'stories' => $stories->map(function ($story) {
+                            return [
+                                'story_id' => $story->id,
+                                'title' => $story->title,
+                                'author' => $story->user->name ?? null, // Assuming 'name' is the author's name
+                                'content' => $story->content,
+                                'cover' => json_decode($story->images, true)[0] ?? null,
+                                'author_img' => $story->user->avatar ?? null,
+                                'created_at' => $story->created_at->toIso8601String(),
+                            ];
+                        })->values()->all(),
+                    ];
+                })->values()->all();
 
+                // ->map(function ($story) {
+
+                //     // ここでカバーのイメージは初めてのイメージにします
+                //     $images = json_decode($story->images, true);
+                //     $story->cover = $images[0] ?? null;
+                //     return $story;
+                // });
+    
             return response()->json([
                 'status' => 'success',
                 'code' => 200,
-                'message' => 'Stories retrieved successfully',
-                'data' => $stories
+                'message' => 'Stories retrieved successfully.',
+                'data' => $groupedStories,
             ]);
-
-        } catch (\Throwable $th) {
+    
+        } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
                 'code' => 500,
-                'message' => $th->getMessage()
-            ]);
+                'message' => $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -51,38 +84,186 @@ class StoryController extends Controller
                 'status' => 'error',
                 'code' => 404,
                 'message' => 'Story not found',
-            ], 404);
+            ]);
+        }
+
+        $story->images = json_decode($story->images, true);
+
+        $similar = Story::with(['user', 'category'])
+            ->where('id', '!=', $story->id)
+            ->where('category_id', $story->category_id) 
+            ->get();
+
+        if (!$story) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 404,
+                'message' => 'Story not found',
+            ]);
         }
 
         return response()->json([
             'status' => 'success',
             'code' => 200,
             'message' => 'Story retrieved successfully',
-            'data' => $story
+            'data' => $story,
+            'similar' => $similar
         ]);
     }
 
     public function createStory(Request $request)
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'story' => 'required|string',
-            'category_id' => 'required|exists:categories,id',
-            'user_id' => 'required|exists:users,id',
-        ]);
+        try {
+            // Validate the incoming request
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'content' => 'required|string',
+                'category_id' => 'required|exists:categories,id',
+                'images' => 'required|array|min:1|max:4',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+    
+            // Get authenticated user
+            $user = JWTAuth::parseToken()->authenticate();
+    
+            // Store images and collect their paths
+            $imagePaths = [];
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('stories', 'public');
+                $imagePaths[] = $path; // Save image path
+            }
+    
+            // Create a story record
+            $story = Story::create([
+                'title' => $request->title,
+                'content' => $request->content,
+                'category_id' => $request->category_id,
+                'user_id' => $user->id,
+                'images' => json_encode($imagePaths), // Store as JSON
+            ]);
+    
+            return response()->json([
+                'status' => 'success',
+                'code' => 201,
+                'message' => 'Story created successfully.',
+                'data' => $story,
+            ], 201);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function updateStory(Request $request, $id)
     {
+        try {
+            $request->validate([
+                "title" => "required|string|max:255",
+                "content" => "required|string",
+                "category_id" => "required|exists:categories,id",
+                "images" => "array|min:1|max:4",
+                "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048",
+            ]);
 
+            $user = JWTAuth::parseToken()->authenticate();
+
+            $story = Story::findOrFail($id);
+
+            if (!$story) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 404,
+                    'message' => 'Story not found',
+                ], 404);
+            }
+
+            if ($story->user_id !== $user->id) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 403,
+                    'message' => 'You are not authorized to update this story',
+                ], 403);
+            }
+
+            // If images are provided, store them and update the image paths
+
+            if ($request->has('images')) {
+                $newImages = [];
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('stories', 'public');
+                    $newImages[] = $path; // Save new image path
+                }
+            }
+
+            // Update the story
+            $story->update([
+                'title' => $request->title,
+                'content' => $request->content,
+                'category_id' => $request->category_id,
+                'images' => $newImages , // Store as JSON
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'code' => 200,
+                'message' => 'Story updated successfully.',
+                'data' => $story,
+            ], 200);
+
+        } catch (\Exception $err) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $err->getMessage()
+            ]);
+        }
     }
 
-    public function deleteStory(Request $request, $id)
+    public function deleteStory($id)
     {
+        try {
+            
+            $user = JWTAuth::parseToken()->authenticate();
+            $story = Story::findOrFail($id);
 
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 401,
+                    'message' => 'Unauthorized',
+                ], 401);
+            }
+
+            if ($story->user_id !== $user->id) {
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 403,
+                    'message' => 'You are not authorized to delete this story',
+                ], 403);
+            }
+
+            $story->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'code' => 200,
+                'message' => 'Story deleted successfully.',
+            ], 200);
+
+        } catch (\Exception $err) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 500,
+                'message' => $err->getMessage()
+            ]);
+        }
     }
 
-
+    // CATEGORY API
     public function getAllCategories()
     {
         try {
