@@ -9,83 +9,6 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class BookmarkController extends Controller
 {
-    public function addBookmark($id)
-    {
-         try {
-            $user = JWTAuth::parseToken()->authenticate();
-
-            if (!$user) {
-                return response()->json([
-                    'status' => 'error',
-                    'code' => 401,
-                    'message' => 'Unauthorized',
-                ], 401);
-            }
-
-            $story = Story::findOrFail($id);
-            $exist = Bookmark::where('user_id', $user->id)
-                ->where('story_id', $story->id)
-                ->exist();
-
-            if ($exist) {
-                return response()->json([
-                    'status' => 'error',
-                    'code' => 409,
-                    'message' => 'Story Already Exist in Your Bookmark',
-                ]);
-            }
-
-            Bookmark::create([
-                'user_id' => $user->id,
-                'story_id' => $story->id
-            ]);
-
-            return response()->json([
-                'status' => 'success',
-                'code' => 200,
-                'message' => 'Bookmark Added successfully.',
-            ], 200);
-
-         } catch (\Exception $err) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 500,
-                'message' => $err->getMessage()
-            ]);
-         }
-    }
-
-    public function deleteBookmark($id)
-    {
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
-            $bookmark = Bookmark::findOrFail($id);
-
-            if ($user->id !== $bookmark->user_id) {
-                return response()->json([
-                    'status' => 'error',
-                    'code' => 403,
-                    'message' => 'You are not authorized to delete this bookmark',
-                ], 403);
-            }
-
-            $bookmark->delete();
-
-            return response()->json([
-                'status' => 'success',
-                'code' => 200,
-                'message' => 'Bookmark deleted successfully.',
-            ], 200);
-
-        } catch (\Exception $err) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 500,
-                'message' => $err->getMessage()
-            ]);
-        }
-    }
-
     public function bookmark(Request $request)
     {
         try {
@@ -104,7 +27,6 @@ class BookmarkController extends Controller
                 $exist->delete();
                 return response()->json([
                     'status' => 'success',
-                    'code' => 200,
                     'message' => 'Bookmark deleted successfully.',
                 ], 200);
             } else {
@@ -114,7 +36,6 @@ class BookmarkController extends Controller
                 ]);
                 return response()->json([
                     'status' => 'success',
-                    'code' => 200,
                     'message' => 'Bookmark added successfully.',
                 ], 200);
             }
@@ -122,7 +43,6 @@ class BookmarkController extends Controller
         } catch (\Exception $err) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $err->getMessage()
             ]);
         }
@@ -132,29 +52,113 @@ class BookmarkController extends Controller
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            $bookmarks = Bookmark::with('story')->where('user_id', $user->id)->get();
+            $bookmarks = Bookmark::with('story', 'user')->where('user_id', $user->id)->get();
+
+            $data = $bookmarks->map(function ($bookmarks) {
+                $story = $bookmarks->story;
+                return [
+                    'id' => $bookmarks->id,
+                    'story_id' => $story->id,
+                    'title' => $story->title,
+                    'content' => $story->content,
+                    'cover' => json_decode($story->images, true)[0] ?? null, // First image as cover
+                    'category' => $story->category->category_name,
+                    'author' => $story->user->name,
+                    'author_avatar' => $story->user->avatar,
+                    'created_at' => $story->created_at,
+                ];
+            });
 
             if (!$bookmarks) {
                 return response()->json([
                     'status' => 'error',
-                    'code' => 404,
                     'message' => 'Bookmarks not found',
                 ], 404);
             }
 
             return response()->json([
                 'status' => 'success',
-                'code' => 200,
                 'message' => 'Bookmarks retrieved successfully',
-                'data' => $bookmarks
+                'data' => $data
             ], 200);
 
         } catch (\Exception $err) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $err->getMessage()
-            ]);
+            ], 500);
         }
     }
+
+    // MANUAL ADD AND DELETE
+    public function addBookmark($id)
+    {
+         try {
+            $user = JWTAuth::parseToken()->authenticate();
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized',
+                ], 401);
+            }
+
+            $story = Story::findOrFail($id);
+            $exist = Bookmark::where('user_id', $user->id)
+                ->where('story_id', $story->id)
+                ->exist();
+
+            if ($exist) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Record Already Exist',
+                ], 409);
+            }
+
+            Bookmark::create([
+                'user_id' => $user->id,
+                'story_id' => $story->id
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Record Added successfully.',
+            ], 200);
+
+         } catch (\Exception $err) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $err->getMessage()
+            ], 500);
+         }
+    }
+
+    public function deleteBookmark($id)
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            $bookmark = Bookmark::findOrFail($id);
+
+            if ($user->id !== $bookmark->user_id) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'You are not authorized to delete this bookmark',
+                ], 403);
+            }
+
+            $bookmark->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Bookmark deleted successfully.',
+            ], 200);
+
+        } catch (\Exception $err) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $err->getMessage()
+            ], 500);
+        }
+    }
+
 }

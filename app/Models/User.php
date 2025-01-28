@@ -32,6 +32,11 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(Story::class);
     }
 
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

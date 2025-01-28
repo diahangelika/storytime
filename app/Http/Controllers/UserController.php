@@ -21,40 +21,35 @@ class UserController extends Controller
             if (!$user) {
                 return response()->json([
                     'status' => 'error',
-                    'code' => 404,
-                    'message' => 'User not found',
+                    'message' => 'Record not found',
                 ], 404);
             }
 
             return response()->json([
                 'status' => 'success',
                 'code' => 200,
-                'message' => 'User fetched successfully',
+                'message' => 'Record fetched successfully',
                 'data' => $user
             ]);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
             return response()->json([
                 'status' => 'error',
-                'code' => 401,
                 'message' => 'Token has expired',
             ], 401);
         } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
             return response()->json([
                 'status' => 'error',
-                'code' => 401,
                 'message' => 'Token is invalid',
             ], 401);
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
             return response()->json([
                 'status' => 'error',
-                'code' => 400,
                 'message' => 'Token is absent',
             ], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $e->getMessage(),
             ], 500);
         }
@@ -69,8 +64,6 @@ class UserController extends Controller
             // VALIDATE DATA
             $request->validate([
                 'name' => 'nullable|string',
-                'username' => 'nullable|string|min:5|max:15',
-                'email' => 'nullable',
                 'bio' => 'nullable',
                 'old_password' => 'nullable',
                 'new_password' => [
@@ -93,12 +86,6 @@ class UserController extends Controller
                 if ($request->has('name')) {
                     $user->name = $request->get('name');
                 }
-                if ($request->has('username')) {
-                    $user->username = $request->get('username');
-                }
-                if ($request->has('email')) {
-                    $user->email = $request->get('email');
-                }
                 if ($request->has('bio')) {
                     $user->bio = $request->get('bio');
                 }
@@ -108,7 +95,6 @@ class UserController extends Controller
                     if (!Hash::check($request->old_password, $user->password)) {
                         return response()->json([
                             'status' => 'error',
-                            'code' => 400,
                             'message' => 'Old password is incorrect',
                         ], 400);
                     }
@@ -128,21 +114,18 @@ class UserController extends Controller
                 // RETURN RESPONSE
                 return response()->json([
                     'status' => 'success',
-                    'code' => 200,
-                    'message' => 'Profile updated successfully 2',
+                    'message' => 'Record updated successfully',
                     'data' => $request->all()
-                ]);
+                ], 200);
             } catch (\Exception $th) {
                 return response()->json([
                     'status' => 'error',
-                    'code' => 500,
                     'message' => $th->getMessage(),
-                ]);
+                ], 500);
             }
         } catch (\Exception $th) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $th->getMessage(),
             ], 500);
         }
@@ -167,12 +150,9 @@ class UserController extends Controller
                     }
 
                     $imagePath = $request->file('avatar')->store('avatar', 'public');
-                    // $user->avatar = $imagePath;
-                    // $user->save(); //ini garis merah biarin aja tetep mau jalan beliau
 
                     return response()->json([
                         'status' => 'success',
-                        'code' => 201,
                         'message' => 'Profile image updated successfully.',
                         'data' => $imagePath
                     ], 201);
@@ -186,8 +166,9 @@ class UserController extends Controller
             }
         } catch (\Exception $err) {
             return response()->json([
+                'status' => 'error',
                 'message' => $err->getMessage()
-            ]);
+            ], 500);
         }
     }
 

@@ -6,10 +6,12 @@ use App\Models\Category;
 use App\Models\Story;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class StoryController extends Controller
 {
+    // STORY API
     public function getAllStories(Request $request)
     {
         try {
@@ -29,6 +31,7 @@ class StoryController extends Controller
                 ->when($title, function ($query) use ($title) {
                     $query->where('title', 'like', '%' . $title . '%');
                 })
+                ->orderBy('created_at', 'desc')
                 ->get();
 
                 $groupedStories = $stories->groupBy('category_id')->map(function ($stories, $categoryId) {
@@ -41,7 +44,8 @@ class StoryController extends Controller
                             return [
                                 'story_id' => $story->id,
                                 'title' => $story->title,
-                                'author' => $story->user->name ?? null, // Assuming 'name' is the author's name
+                                "author_id" => $story->user_id,
+                                'author' => $story->user->name ?? null, 
                                 'content' => $story->content,
                                 'cover' => json_decode($story->images, true)[0] ?? null,
                                 'author_img' => $story->user->avatar ?? null,
@@ -50,26 +54,16 @@ class StoryController extends Controller
                         })->values()->all(),
                     ];
                 })->values()->all();
-
-                // ->map(function ($story) {
-
-                //     // ここでカバーのイメージは初めてのイメージにします
-                //     $images = json_decode($story->images, true);
-                //     $story->cover = $images[0] ?? null;
-                //     return $story;
-                // });
     
             return response()->json([
                 'status' => 'success',
-                'code' => 200,
                 'message' => 'Stories retrieved successfully.',
                 'data' => $groupedStories,
-            ]);
+            ], 200);
     
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $e->getMessage(),
             ], 500);
         }
@@ -82,33 +76,44 @@ class StoryController extends Controller
         if (!$story) {
             return response()->json([
                 'status' => 'error',
-                'code' => 404,
-                'message' => 'Story not found',
-            ]);
+                'message' => 'Record not found',
+            ], 404);
         }
 
         $story->images = json_decode($story->images, true);
 
         $similar = Story::with(['user', 'category'])
             ->where('id', '!=', $story->id)
-            ->where('category_id', $story->category_id) 
+            ->where('category_id', $story->category_id)
+            ->orderBy('created_at', 'desc')
             ->get();
+
+        $return = $similar->map(function ($similar) {
+            return [
+                'id' => $similar->id,
+                'title' => $similar->title,
+                'content' => $similar->content,
+                'cover' => json_decode($similar->images, true)[0] ?? null,
+                'category' => $similar->category->category_name,
+                'author' => $similar->user->name,
+                'author_avatar' => $similar->user->avatar,
+                'created_at' => $similar->created_at,
+            ];
+        })->values()->all();
 
         if (!$story) {
             return response()->json([
                 'status' => 'error',
-                'code' => 404,
                 'message' => 'Story not found',
-            ]);
+            ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'code' => 200,
             'message' => 'Story retrieved successfully',
             'data' => $story,
-            'similar' => $similar
-        ]);
+            'similar' => $return
+        ], 200);
     }
 
     public function createStory(Request $request)
@@ -142,9 +147,9 @@ class StoryController extends Controller
                 'images' => json_encode($imagePaths), // Store as JSON
             ]);
     
+            // return response
             return response()->json([
                 'status' => 'success',
-                'code' => 201,
                 'message' => 'Story created successfully.',
                 'data' => $story,
             ], 201);
@@ -152,11 +157,11 @@ class StoryController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $e->getMessage(),
             ], 500);
         }
     }
+
 
     public function updateStory(Request $request, $id)
     {
@@ -165,8 +170,10 @@ class StoryController extends Controller
                 "title" => "required|string|max:255",
                 "content" => "required|string",
                 "category_id" => "required|exists:categories,id",
-                "images" => "array|min:1|max:4",
-                "images.*" => "image|mimes:jpeg,png,jpg,gif|max:2048",
+                "images" => "sometimes|array|min:1|max:4",
+                "images.*" => "sometimes|image|mimes:jpeg,png,jpg,gif|max:2048",
+                "prev_images" => "sometimes",
+                "deleted_images" => "sometimes",
             ]);
 
             $user = JWTAuth::parseToken()->authenticate();
@@ -176,7 +183,6 @@ class StoryController extends Controller
             if (!$story) {
                 return response()->json([
                     'status' => 'error',
-                    'code' => 404,
                     'message' => 'Story not found',
                 ], 404);
             }
@@ -184,34 +190,80 @@ class StoryController extends Controller
             if ($story->user_id !== $user->id) {
                 return response()->json([
                     'status' => 'error',
-                    'code' => 403,
                     'message' => 'You are not authorized to update this story',
                 ], 403);
             }
 
-            // If images are provided, store them and update the image paths
-
+            $data = [
+                'title' => $request->title,
+                'content' => $request->content,
+                'category_id' => $request->category_id, // Store as JSON
+            ];
+            $newImages = [];
             if ($request->has('images')) {
-                $newImages = [];
+                
                 foreach ($request->file('images') as $image) {
                     $path = $image->store('stories', 'public');
                     $newImages[] = $path; // Save new image path
                 }
             }
 
+            if ($request->has('prev_images')) {
+                $prevImages = $request->prev_images ?? [];
+                if (is_string($prevImages)) {
+                    $prevImages = explode(',', $prevImages);
+                }
+                if (!is_array($prevImages)) {
+                    $prevImages = [];
+                }
+                // Merge previous and new images
+                $allImages = array_merge($prevImages, $newImages);
+
+                // Ensure no more than 4 images
+                if (count($allImages) > 4) {
+                    return response()->json([
+                        'status' => 'error',
+                        'code' => 400,
+                        'message' => 'You can upload a maximum of 4 images.',
+                    ], 400);
+                }
+
+                $data['images'] = json_encode($allImages);
+            }
+
+
+
+            if ($request->has('deleted_images')) {
+                $deletedImages = $request->deleted_images ?? [];
+                $test['deleted_before'] = json_decode($deletedImages);
+            
+                // Ensure $deletedImages is a string before applying json_decode
+                if (is_string($deletedImages)) {
+                    $deletedImages = json_decode($deletedImages, true);
+                } elseif (is_array($deletedImages)) {
+                    // It's already an array; no further decoding is needed
+                } else {
+                    // Handle unexpected cases (e.g., null or invalid type)
+                    $deletedImages = [];
+                }
+            
+                foreach ($deletedImages as $image) {
+                    Storage::disk('public')->delete($image);
+                }
+            
+                // Save the final array of deleted images as a JSON string
+                $test['deleted_images'] = json_encode($deletedImages);
+            }
+
             // Update the story
-            $story->update([
-                'title' => $request->title,
-                'content' => $request->content,
-                'category_id' => $request->category_id,
-                'images' => $newImages , // Store as JSON
-            ]);
+            $story->update($data);
 
             return response()->json([
                 'status' => 'success',
                 'code' => 200,
                 'message' => 'Story updated successfully.',
                 'data' => $story,
+                'test' => $test
             ], 200);
 
         } catch (\Exception $err) {
@@ -233,7 +285,6 @@ class StoryController extends Controller
             if (!$user) {
                 return response()->json([
                     'status' => 'error',
-                    'code' => 401,
                     'message' => 'Unauthorized',
                 ], 401);
             }
@@ -241,8 +292,7 @@ class StoryController extends Controller
             if ($story->user_id !== $user->id) {
                 return response()->json([
                     'status' => 'error',
-                    'code' => 403,
-                    'message' => 'You are not authorized to delete this story',
+                    'message' => 'Forbidden',
                 ], 403);
             }
 
@@ -250,16 +300,14 @@ class StoryController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'code' => 200,
-                'message' => 'Story deleted successfully.',
+                'message' => 'Record deleted successfully.',
             ], 200);
 
         } catch (\Exception $err) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $err->getMessage()
-            ]);
+            ], 500);
         }
     }
 
@@ -267,20 +315,21 @@ class StoryController extends Controller
     public function getAllCategories()
     {
         try {
-            $category = Category::whereNull('deleted_at')->get();
+            $category = Category::whereNull('deleted_at')
+                ->orderBy('category_name', 'desc')
+                ->get();
 
             return response()->json([
                 'status' => 'success',
-                'code' => 200,
-                'message' => 'Categories retrieved successfully',
+                'message' => 'Record retrieved successfully',
                 'data' => $category
-            ]);
+            ], 200);
+
         } catch (\Exception $th) {
             return response()->json([
                 'status' => 'error',
-                'code' => 500,
                 'message' => $th->getMessage()
-            ]);
+            ], 500);
         }
     }
 }

@@ -48,15 +48,13 @@ class AuthController extends Controller
             // RETURN RESPONSE
             return response()->json([
                 'status' => 'success',
-                'code' => 201,
                 'message' => 'Registration successful',
                 // 'data' => $user, //(optional)
-            ]);
+            ], 201);
 
         } catch (\Throwable $err) {
             return response()->json([
                 'status' => 'failed',
-                'code' => 500,
                 'message' => $err->getMessage(),
             ], 500);
         }
@@ -80,26 +78,12 @@ class AuthController extends Controller
                 'password' => $request->password
             ];
 
-            // USING LARAVEL DEFAULT TOKEN
-            // FIND USER BY ID
-            // $user = User::where($loginField, $request->email_or_username)->first();
-
-            // $token = $user->createToken('token')->plainTextToken;
-
-            // return response()->json([
-            //     'status' => 'success',
-            //     'code' => 200,
-            //     'message' => 'Login successful',
-            //     'token' => $token
-            // ]);
-
             // USING JWT
             try {
                 // CHECK IF TOKEN EXISTS
                 if (!$token = JWTAuth::attempt($credentials)) {
                     return response()->json([
                         'status' => 'failed',
-                        'code' => 401,
                         'message' => 'Unauthorized',
                     ], 401);
                 }
@@ -118,16 +102,14 @@ class AuthController extends Controller
                 // RETURN RESPONSE
                 return response()->json([
                     'status' => 'success',
-                    'code' => 200,
                     'message' => 'Login successful',
                     'token' => $token,
                     'user' => $user
-                ]);
+                ], 200);
 
             } catch (\Exception $err) {
                 return response()->json([
                     'status' => 'failed',
-                    'code' => 500,
                     'message' => $err->getMessage(),
                 ], 500);
             }
@@ -135,7 +117,6 @@ class AuthController extends Controller
         } catch (\Exception $err) {
             return response()->json([
                 'status' => 'failed',
-                'code' => 500,
                 'message' => $err->getMessage(),
             ], 500);
         }      
@@ -159,9 +140,8 @@ class AuthController extends Controller
 
                 return response()->json([
                     'message' => 'Successfully logged out',
-                    'code' => 200,
                     'status' => 'success'
-                ]);
+                ], 200);
             } catch (\Exception $e) {
                 // ERROR HANDLING
                 return response()->json(['error' => 'Failed to logout'], 500);

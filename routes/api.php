@@ -35,6 +35,7 @@ Route::middleware(['jwt.auth', 'jwt.blacklist'])->group(function() {
     // STORY
     Route::post('/story/create', [StoryController::class, 'createStory']);
     Route::delete('/story/delete/{story_id}', [StoryController::class, 'deleteStory']);
+    Route::post('/story/update/{story_id}', [StoryController::class, 'updateStory']);
     
     // BOOKMARK
     Route::get('/user/bookmarks', [BookmarkController::class, 'getBookmarks']);
