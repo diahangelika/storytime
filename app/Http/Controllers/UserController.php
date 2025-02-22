@@ -30,6 +30,86 @@ class UserController extends Controller
             'data' => $userData
         ]);
     }
+<<<<<<< Updated upstream
+=======
+
+    public function update(Request $request)
+    {
+        try {
+            // AUTHENTICATE USER
+            $user = JWTAuth::parseToken()->authenticate();
+
+            // VALIDATE DATA
+            $request->validate([
+                'name' => 'nullable|string',
+                'bio' => 'nullable',
+                'old_password' => 'nullable',
+                'new_password' => [
+                    'nullable',
+                    'min:8',
+                    'regex:/^(?=.*\d)(?=.*[@$!%*?&_\\-])[A-Za-z\d@$!%*?&_\\-]+$/',
+                ],
+                'avatar' => 'nullable',
+            ], [
+                'username.unique' => 'Username already exists',
+                'username.max' => 'Username must be between 5 and 15 characters',
+                'username.min' => 'Username must be between 5 and 15 characters',
+                'password.min' => 'Password must be at least 8 characters',
+                'password.regex' => 'Password must contain at least one number and one special character',
+            ]);
+
+            try {
+
+                // PROFILE DATA CHANGE
+                if ($request->has('name')) {
+                    $user->name = $request->get('name');
+                }
+                if ($request->has('bio')) {
+                    $user->bio = $request->get('bio');
+                }
+
+                // PASSWORD CHANGE
+                if ($request->filled('old_password', 'new_password')) {
+                    if (!Hash::check($request->old_password, $user->password)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Old password is incorrect',
+                        ], 400);
+                    }
+                    $user->password = Hash::make($request->get('new_password'));
+                }
+
+                $isUpdate = $request->query('is_update');
+
+                // AVATAR CHANGE
+                if ($isUpdate == 'true') {
+                    $user->avatar = $request->input('avatar.data');
+                }
+
+                // SAVE THE UPDATED DATA
+                $user->save();
+
+                // RETURN RESPONSE
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Record updated successfully',
+                    'data' => $request->all()
+                ], 200);
+            } catch (\Exception $th) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $th->getMessage(),
+                ], 500);
+            }
+        } catch (\Exception $th) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $th->getMessage(),
+            ], 500);
+        }
+    }
+
+>>>>>>> Stashed changes
     public function addProfilePicture(Request $request)
     {
         try {

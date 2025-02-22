@@ -31,4 +31,17 @@ class Story extends Model
     {
         return $this->belongsTo(User::class);
     }
+<<<<<<< Updated upstream
+=======
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function getBookmarkCountAttribute()
+    {
+        return $this->bookmarks()->count();
+    }
+>>>>>>> Stashed changes
 }
